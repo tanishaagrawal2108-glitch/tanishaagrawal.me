@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { nav, site } from "@/content/site";
+import { nav } from "@/content/site";
 
-export function SiteHeader() {
+export function SiteHeader({ name }: { name: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -28,7 +28,7 @@ export function SiteHeader() {
           href="/"
           className="flex items-baseline gap-[9px] font-display text-[21px] font-medium tracking-[-0.01em]"
         >
-          {site.name}
+          {name}
           <span
             aria-hidden
             className="inline-block h-1.5 w-1.5 -translate-y-px rounded-full bg-brand"

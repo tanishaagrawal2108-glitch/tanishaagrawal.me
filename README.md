@@ -1,11 +1,14 @@
 # tanishaagrawal.me
 
-Portfolio for **Tanisha Agrawal** — Spatial & Data Analyst. A static site built
-from the approved Claude Design mockup (`Tanisha Agrawal Portfolio.dc.html`).
+Portfolio for **Tanisha Agrawal** — Spatial & Data Analyst. Built from the
+approved Claude Design mockup (`Tanisha Agrawal Portfolio.dc.html`), with a
+no-code editor so Tanisha can update everything herself.
 
-- **Stack:** Next.js (App Router, TypeScript) · Tailwind CSS v4 · shadcn/ui
-- **Output:** static export (`output: "export"`) — no server runtime
+- **Stack:** Next.js (App Router, TypeScript) · Tailwind CSS v4 · shadcn/ui · **Sanity CMS**
+- **Editing:** Sanity Studio embedded at **`/admin`** (login required)
 - **Host:** Vercel (auto-deploys on push to `main`)
+- **Content:** served from Sanity when configured; otherwise falls back to the
+  built-in content in `src/content/*`, so the site always builds and renders.
 
 ---
 
@@ -13,176 +16,120 @@ from the approved Claude Design mockup (`Tanisha Agrawal Portfolio.dc.html`).
 
 ```bash
 npm install
-npm run dev        # http://localhost:3000
-npm run build      # production build → static site in ./out
+npm run dev        # http://localhost:3000  (site)  ·  /admin  (editor)
+npm run build      # production build
 ```
 
-Other scripts:
-
-| Script                 | What it does                                             |
+| Script                 | What it does                                            |
 | ---------------------- | ------------------------------------------------------- |
-| `npm run images`       | Optimize map exports in `/images-src` → WebP + thumbs   |
+| `npm run seed`         | Load the built-in content into Sanity (one time)        |
+| `npm run images`       | Optimize local map exports in `/images-src` → WebP       |
 | `npm run placeholders` | Regenerate `public/og.png` and the placeholder resume   |
 | `npm run lint`         | ESLint                                                   |
 
 ---
 
-## Project structure
+## Content editing (Sanity) — how Tanisha updates the site
+
+Once set up, **she never touches code**:
+
+1. Go to **`tanishaagrawal.me/admin`** and log in (Google / GitHub / email).
+2. Edit any section — **Site Settings** (name, hero, contact, skills), **About
+   Page**, or **Projects**. Text is plain form fields.
+3. **Add a project:** Projects → **＋** → fill in the fields, drag-and-drop the
+   hero and map images (each map has its own caption + alt-text box).
+4. Click **Publish**. The live site updates within about a minute.
+
+### One-time setup (developer)
+
+1. **Create a Sanity project** at [sanity.io/manage](https://www.sanity.io/manage)
+   (or `npm create sanity@latest`). Note the **Project ID** and dataset
+   (`production`).
+2. **CORS origins** — in Sanity → **API → CORS origins**, add
+   `http://localhost:3000` and `https://tanishaagrawal.me` (plus your Vercel
+   preview URL) with **Allow credentials** checked. This lets the embedded
+   Studio log in.
+3. **Local env** — copy `.env.example` to `.env.local` and fill in
+   `NEXT_PUBLIC_SANITY_PROJECT_ID`, `NEXT_PUBLIC_SANITY_DATASET`, and a
+   `SANITY_API_WRITE_TOKEN` (Sanity → **API → Tokens**, "Editor" permission).
+4. **Seed** the current content so the editor opens fully populated:
+   ```bash
+   npm run seed
+   ```
+5. **Vercel env** — in the Vercel project → **Settings → Environment Variables**,
+   add `NEXT_PUBLIC_SANITY_PROJECT_ID`, `NEXT_PUBLIC_SANITY_DATASET`, and
+   `NEXT_PUBLIC_SANITY_API_VERSION`, then redeploy. (Do **not** add the write
+   token to Vercel — it's only for local seeding.)
+6. **Invite Tanisha** as a member (Editor) of the Sanity project so she can log
+   in at `/admin`.
+
+> Until step 5 is done, the site still works — it serves the built-in content
+> and `/admin` shows a short "connect Sanity" notice.
+
+### Uploading her map images
+
+Just drag them into the image fields in `/admin` — Sanity stores and optimizes
+them on its CDN (no size limits to worry about; no build step). The local
+`npm run images` pipeline (`/images-src` → WebP) remains available if you ever
+want to reference images from `/public` instead.
+
+---
+
+## How it's structured
 
 ```
 src/
-  app/                     routes (home, work, work/[slug], about, resume, contact)
-    layout.tsx             fonts, metadata, header + footer
-    globals.css            design tokens (colors, fonts, radii)
-    sitemap.ts, robots.ts  SEO
-    icon.svg               favicon
-  components/              header, footer, globe, cards, work grid, gallery/lightbox, arcgis embed
-  content/
-    site.ts                name, contact links, skills, nav
-    projects.ts            ← all project data lives here
-  lib/utils.ts             cn() helper
-images-src/                drop raw map exports here (git-ignored inputs)
-public/images/             optimized outputs referenced by next/image
-scripts/                   image pipeline + placeholder generators
+  app/
+    (site)/                marketing pages (home, work, work/[slug], about, resume, contact)
+    admin/[[...tool]]/     embedded Sanity Studio  → /admin
+    layout.tsx             fonts + metadata
+    globals.css            design tokens
+    sitemap.ts, robots.ts
+  components/              header, footer, globe, cards, work grid, lightbox, arcgis embed
+  content/                 built-in fallback content (also the seed source)
+    site.ts, about.ts, projects.ts
+  lib/content.ts           data layer: Sanity when configured, else fallback
+  sanity/                  client, schemas, queries, image URLs, Studio config
 ```
 
-The design tokens (Paper `#FAFAF8`, Surface `#F4F3EE`, Ink `#1A1A1A`, Muted
-`#6A6A64`, Teal accent `#0E6E6A`; fonts Newsreader / Geist / Geist Mono) are
-lifted verbatim from the mockup into `globals.css`.
+Design tokens (Paper `#FAFAF8`, Surface `#F4F3EE`, Ink `#1A1A1A`, Muted
+`#6A6A64`, Teal `#0E6E6A`; Newsreader / Geist / Geist Mono) are lifted verbatim
+from the mockup into `globals.css`.
 
----
+### Editing content in code (advanced / fallback)
 
-## How to add a new project (map)
-
-Everything is data-driven — you add an entry, not a page.
-
-### 1. Add the images
-
-Put your ArcGIS/QGIS map exports in a per-project folder under `images-src/`,
-then optimize them:
-
-```
-images-src/
-  my-new-project/
-    hero.png
-    figure-1.png
-    figure-2.png
-```
-
-```bash
-npm run images
-```
-
-This writes `public/images/my-new-project/hero.webp` (+ a `.thumb.webp`) for each
-source image. Large TIFF/PNG exports are handled fine.
-
-### 2. Add the entry
-
-Append an object to the `projects` array in [`src/content/projects.ts`](src/content/projects.ts):
-
-```ts
-{
-  slug: "my-new-project",          // URL: /work/my-new-project
-  featured: false,                  // true → also shown on the home page (feature 8–10)
-  title: "My New Project",
-  oneliner: "One-line description shown on cards and as the subtitle.",
-  categories: ["Spatial Analysis"], // filter tags — see CAPABILITIES in site.ts
-  chips: ["ArcGIS Pro", "Raster"],  // small skill chips on the card
-  role: "Sole analyst",
-  affiliation: "GEOG 4xx — Course",
-  date: "2025",
-  tools: ["ArcGIS Pro", "Python"],
-  heroCaption: "Describe the hero map.",
-  heroImage: "/images/my-new-project/hero.webp", // omit to show a placeholder
-  researchQuestion: "…",
-  objective: "…",
-  data: [{ label: "Source name", href: "https://…" }],
-  methodology: ["Step one.", "Step two."],
-  maps: [
-    {
-      src: "/images/my-new-project/figure-1.webp", // omit for a placeholder
-      caption: "Fig. 1 — caption shown under the figure.",
-      alt: "Descriptive alt text (required for accessibility).",
-    },
-  ],
-  findings: ["Key finding one.", "Key finding two."],
-  webMap: true,                     // true → shows the ArcGIS embed block
-  arcgisEmbedUrl: null,             // paste the share URL (see below) or leave null
-},
-```
-
-Cards, the `/work` filter, the detail page, prev/next nav, and the sitemap all
-update automatically.
-
-> **Placeholders:** `heroImage` / `maps[].src` are optional. Until you supply an
-> image, the UI renders the design's captioned hatch placeholder — never blank.
-> `alt` text is always required (508 / WCAG AA).
-
----
-
-## How to set the ArcGIS embed URL
-
-For any project with `webMap: true`, the detail page shows an interactive web-map
-block. To make it live:
-
-1. Open the web map in **ArcGIS Online → Share → Embed**.
-2. Copy the iframe `src` (looks like `https://arcg.is/…` or
-   `https://www.arcgis.com/apps/Embed/index.html?webmap=…`).
-3. Paste it into that project's `arcgisEmbedUrl` in `projects.ts`:
-
-   ```ts
-   arcgisEmbedUrl: "https://www.arcgis.com/apps/Embed/index.html?webmap=abc123",
-   ```
-
-Until a URL is set, a documented placeholder block is shown (no broken embed).
-
----
-
-## Adding the resume
-
-Replace `public/tanisha-agrawal-resume.pdf` with the real PDF (keep the same
-filename). The `/resume` page embeds it and offers a download button. A
-clearly-labelled placeholder ships until then — regenerate it with
-`npm run placeholders`.
+`src/content/*.ts` holds the built-in content used when Sanity isn't connected,
+and is the source `npm run seed` pushes to Sanity. To change the fallback (or
+add a project without the CMS), edit `src/content/projects.ts` and commit — see
+the field comments there.
 
 ---
 
 ## Deploying to Vercel
 
-The repo is connected to Vercel and **auto-deploys on push to `main`**.
-
-- **Framework preset:** Next.js (auto-detected)
-- **Build command:** `next build` (default)
-- **Output:** with `output: "export"`, Vercel serves the generated static site.
-
-Verify locally before pushing:
-
-```bash
-npm run build
-```
+Connected to Vercel and **auto-deploys on push to `main`**. Framework preset
+**Next.js**, build command `next build` (defaults). Set the Sanity env vars
+(above) in Vercel so the CMS is active in production.
 
 ### Connect the domain (tanishaagrawal.me)
 
-1. In the Vercel project → **Settings → Domains**, add `tanishaagrawal.me` and
+1. Vercel project → **Settings → Domains** → add `tanishaagrawal.me` and
    `www.tanishaagrawal.me`.
-2. At your DNS registrar, create the records Vercel shows. Typically:
+2. At your registrar, add the records Vercel shows — typically:
 
-   | Type    | Name   | Value                    |
-   | ------- | ------ | ------------------------ |
-   | `A`     | `@`    | `76.76.21.21`            |
-   | `CNAME` | `www`  | `cname.vercel-dns.com`   |
+   | Type    | Name  | Value                  |
+   | ------- | ----- | ---------------------- |
+   | `A`     | `@`   | `76.76.21.21`          |
+   | `CNAME` | `www` | `cname.vercel-dns.com` |
 
-   > Use the exact values shown in your Vercel dashboard — they can differ. If
-   > your registrar supports it, an `ALIAS`/`ANAME` on the apex pointing at
-   > `cname.vercel-dns.com` also works.
-3. Set the primary domain (redirect `www` → apex, or vice-versa) in Vercel.
-4. Wait for DNS to propagate; Vercel provisions HTTPS automatically.
+   > Use the exact values from your Vercel dashboard.
+3. Set the primary domain and let Vercel provision HTTPS automatically.
 
 ---
 
 ## Accessibility & SEO
 
-- Semantic landmarks, skip-to-content link, keyboard-navigable lightbox
-  (Esc / arrows), focus management, `alt` on every map, AA-contrast palette.
-- Per-page `<title>`/description, Open Graph image (`/og.png`), `sitemap.xml`,
-  `robots.txt`, and a branded favicon.
+Semantic landmarks, skip link, keyboard-navigable lightbox (Esc / arrows),
+required alt text on every map, AA-contrast palette, per-page metadata, Open
+Graph image, `sitemap.xml`, `robots.txt`, and a branded favicon. `/admin` is
+`noindex`.

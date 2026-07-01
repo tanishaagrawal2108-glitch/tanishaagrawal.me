@@ -5,9 +5,13 @@ import { notFound } from "next/navigation";
 import { ArcgisEmbed } from "@/components/arcgis-embed";
 import { Kicker } from "@/components/kicker";
 import { ProjectGallery } from "@/components/project-gallery";
-import { getAdjacent, getProject, projects } from "@/content/projects";
+import { getAdjacent, getProject, getProjects } from "@/lib/content";
 
-export function generateStaticParams() {
+// Pre-render known projects at build; render newly-added ones on first request.
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  const projects = await getProjects();
   return projects.map((p) => ({ slug: p.slug }));
 }
 
@@ -17,7 +21,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const project = getProject(slug);
+  const project = await getProject(slug);
   if (!project) return {};
   return {
     title: project.title,
@@ -35,10 +39,10 @@ export default async function ProjectPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const project = getProject(slug);
+  const project = await getProject(slug);
   if (!project) notFound();
 
-  const { prev, next } = getAdjacent(slug);
+  const { prev, next } = await getAdjacent(slug);
 
   return (
     <>
@@ -76,9 +80,11 @@ export default async function ProjectPage({
             {project.title}
           </h1>
         </div>
-        <span className="absolute left-1/2 top-5 hidden max-w-[80vw] -translate-x-1/2 text-center font-mono text-[10.5px] uppercase tracking-[0.1em] text-[#8c8c84] sm:block">
-          {project.heroCaption}
-        </span>
+        {project.heroCaption && (
+          <span className="absolute left-1/2 top-5 hidden max-w-[80vw] -translate-x-1/2 text-center font-mono text-[10.5px] uppercase tracking-[0.1em] text-[#8c8c84] sm:block">
+            {project.heroCaption}
+          </span>
+        )}
       </div>
 
       {/* Meta row */}
@@ -166,7 +172,7 @@ export default async function ProjectPage({
       </section>
 
       {/* Maps & results (with lightbox) */}
-      <ProjectGallery maps={project.maps} />
+      {project.maps.length > 0 && <ProjectGallery maps={project.maps} />}
 
       {/* Live ArcGIS web map */}
       {project.webMap && (
@@ -174,22 +180,24 @@ export default async function ProjectPage({
       )}
 
       {/* Findings */}
-      <section className="mx-auto max-w-[1280px] px-6 pb-16 sm:px-10">
-        <Kicker className="mb-5 text-[11px] tracking-[0.12em]">Findings</Kicker>
-        <ul className="flex list-none flex-col p-0">
-          {project.findings.map((f, i) => (
-            <li
-              key={i}
-              className="flex items-start gap-[18px] border-t border-hairline py-[18px]"
-            >
-              <span className="mt-[9px] h-2 w-2 flex-none rounded-full bg-brand" />
-              <p className="m-0 max-w-[46em] text-[18px] leading-[1.55] text-ink-2">
-                {f}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {project.findings.length > 0 && (
+        <section className="mx-auto max-w-[1280px] px-6 pb-16 sm:px-10">
+          <Kicker className="mb-5 text-[11px] tracking-[0.12em]">Findings</Kicker>
+          <ul className="flex list-none flex-col p-0">
+            {project.findings.map((f, i) => (
+              <li
+                key={i}
+                className="flex items-start gap-[18px] border-t border-hairline py-[18px]"
+              >
+                <span className="mt-[9px] h-2 w-2 flex-none rounded-full bg-brand" />
+                <p className="m-0 max-w-[46em] text-[18px] leading-[1.55] text-ink-2">
+                  {f}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Prev / next */}
       <nav
