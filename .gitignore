@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# raw map exports (inputs to `npm run images`) — large; keep out of git.
+# The optimized outputs in /public/images ARE committed.
+/images-src/*
+!/images-src/README.md
