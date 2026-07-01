@@ -1,12 +1,25 @@
 "use client";
 
+import {
+  geoContains,
+  geoGraticule10,
+  geoOrthographic,
+  geoPath,
+} from "d3-geo";
+import type { FeatureCollection } from "geojson";
 import { useEffect, useRef } from "react";
 
 /**
- * "The world, as points" — a rotating Fibonacci-sphere point cloud.
- * Ported verbatim from the design mockup's canvas logic. Purely decorative
- * (aria-hidden); honours prefers-reduced-motion by rendering a single frame.
+ * "The world, as points" — real continents rendered as a rotating halftone
+ * dot globe. Land geometry (Natural Earth 110m) is vendored locally and dots
+ * are sampled inside it; the palette matches the site (teal dots, brighter
+ * toward the centre, faint graticule). Purely decorative (aria-hidden) and
+ * honours prefers-reduced-motion by drawing a single still frame.
  */
+const BRAND = "14,110,106"; // #0E6E6A
+const TILT = -20; // northern-hemisphere tilt
+const STEP = 2.2; // degrees between sampled dots (density)
+
 export function Globe() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -14,23 +27,16 @@ export function Globe() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const N = 820;
-    const pts: [number, number, number][] = [];
-    const off = 2 / N;
-    const inc = Math.PI * (3 - Math.sqrt(5));
-    for (let i = 0; i < N; i++) {
-      const y = i * off - 1 + off / 2;
-      const r = Math.sqrt(1 - y * y);
-      const phi = i * inc;
-      pts.push([Math.cos(phi) * r, y, Math.sin(phi) * r]);
-    }
-
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const reduce = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
-    let ang = 0;
+    const projection = geoOrthographic().clipAngle(90);
+
+    let dots: [number, number][] = [];
+    let rotation = 0;
     let raf = 0;
+    let cancelled = false;
 
     const draw = () => {
       const w = canvas.clientWidth;
@@ -42,42 +48,56 @@ export function Globe() {
         if (ctx) {
           ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
           ctx.clearRect(0, 0, w, h);
-          const R = Math.min(w, h) * 0.42;
+          const R = Math.min(w, h) * 0.46;
           const cx = w / 2;
           const cy = h / 2;
-          ang += 0.0024;
-          const a = ang;
-          const ca = Math.cos(a);
-          const sa = Math.sin(a);
-          const tilt = -0.42;
-          const ct = Math.cos(tilt);
-          const st = Math.sin(tilt);
-          for (const p of pts) {
-            const x = p[0] * ca - p[2] * sa;
-            const z = p[0] * sa + p[2] * ca;
-            const y = p[1];
-            const y2 = y * ct - z * st;
-            const z2 = y * st + z * ct;
-            const sx = cx + x * R;
-            const sy = cy + y2 * R;
-            const depth = (z2 + 1) / 2; // 0 back .. 1 front
-            const rad = 0.7 + depth * 1.7;
-            const al = 0.1 + depth * depth * 0.62;
+          projection.scale(R).translate([cx, cy]).rotate([rotation, TILT]);
+
+          // Faint graticule (lat/long grid), clipped to the front hemisphere.
+          const path = geoPath(projection, ctx);
+          ctx.beginPath();
+          path(geoGraticule10());
+          ctx.strokeStyle = "rgba(26,26,26,0.07)";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // Teal land dots, brighter toward the centre (nearer the viewer).
+          for (const dot of dots) {
+            const p = projection(dot);
+            if (!p) continue; // back hemisphere is clipped away
+            const rr = Math.hypot(p[0] - cx, p[1] - cy) / R; // 0 centre .. 1 limb
+            const depth = Math.sqrt(Math.max(0, 1 - rr * rr));
             ctx.beginPath();
-            ctx.arc(sx, sy, rad, 0, 6.2832);
-            ctx.fillStyle =
-              depth > 0.55
-                ? `rgba(14,110,106,${al})`
-                : `rgba(26,26,26,${al * 0.5})`;
+            ctx.arc(p[0], p[1], 0.7 + depth * 1.5, 0, 6.2832);
+            ctx.fillStyle = `rgba(${BRAND},${0.14 + depth * depth * 0.6})`;
             ctx.fill();
           }
         }
       }
-      if (!reduce) raf = requestAnimationFrame(draw);
+      if (!reduce && !cancelled) {
+        rotation += 0.16;
+        raf = requestAnimationFrame(draw);
+      }
     };
 
-    draw();
+    fetch("/geo/ne_110m_land.json")
+      .then((r) => r.json())
+      .then((land: FeatureCollection) => {
+        if (cancelled) return;
+        for (let lat = -84; lat <= 84; lat += STEP) {
+          for (let lng = -180; lng <= 180; lng += STEP) {
+            if (geoContains(land, [lng, lat])) dots.push([lng, lat]);
+          }
+        }
+        draw();
+      })
+      .catch(() => {
+        /* decorative — leave blank on failure */
+      });
+
     return () => {
+      cancelled = true;
+      dots = [];
       if (raf) cancelAnimationFrame(raf);
     };
   }, []);
