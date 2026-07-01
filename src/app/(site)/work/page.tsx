@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Kicker } from "@/components/kicker";
 import { WorkGrid } from "@/components/work-grid";
-import { projects } from "@/content/projects";
+import { getProjects } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Work",
@@ -9,7 +9,9 @@ export const metadata: Metadata = {
     "Spatial analysis, suitability modeling, cartography and web GIS — selected projects spanning environmental and fiscal questions.",
 };
 
-export default function WorkPage() {
+export default async function WorkPage() {
+  const projects = await getProjects();
+
   return (
     <>
       <section className="mx-auto max-w-[1280px] px-6 pb-7 pt-14 sm:px-10">

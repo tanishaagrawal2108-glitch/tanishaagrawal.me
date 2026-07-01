@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Kicker } from "@/components/kicker";
-import { site } from "@/content/site";
+import { getSiteContent } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -8,18 +8,20 @@ export const metadata: Metadata = {
     "Open to GIS-analyst and spatial × fiscal roles. Reach Tanisha Agrawal by email, LinkedIn, or GitHub.",
 };
 
-const links = [
-  { label: "Email", value: site.email, href: `mailto:${site.email}` },
-  { label: "LinkedIn", value: site.linkedin.label, href: site.linkedin.url },
-  { label: "GitHub", value: site.github.label, href: site.github.url },
-];
+export default async function ContactPage() {
+  const site = await getSiteContent();
 
-export default function ContactPage() {
+  const links = [
+    { label: "Email", value: site.email, href: `mailto:${site.email}` },
+    { label: "LinkedIn", value: site.linkedin.label, href: site.linkedin.url },
+    { label: "GitHub", value: site.github.label, href: site.github.url },
+  ];
+
   return (
     <section className="mx-auto flex min-h-[calc(100vh-67px)] max-w-[1000px] flex-col justify-center px-6 py-20 sm:px-10">
       <Kicker className="mb-[22px] text-[12px] tracking-[0.14em]">Contact</Kicker>
       <h1 className="mb-10 max-w-[16em] text-balance font-display text-[38px] font-normal leading-[1.08] tracking-[-0.018em] sm:text-[52px]">
-        Open to GIS-analyst and spatial × fiscal roles.
+        {site.contactHeadline}
       </h1>
       <div className="flex flex-col border-t border-line">
         {links.map((l) => {

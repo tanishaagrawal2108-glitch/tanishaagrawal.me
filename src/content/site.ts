@@ -23,6 +23,14 @@ export const site = {
     url: "https://github.com/tanishaagrawal",
   },
   resumeFile: "/tanisha-agrawal-resume.pdf",
+
+  // Home hero + contact copy (editable in Sanity once configured).
+  homeKicker: "Spatial & Data Analyst",
+  homeHeadline:
+    "I turn environmental and financial data into maps that inform decisions.",
+  homeIntro:
+    "Finance & Environmental Studies student on the CPA track, working at the bridge between spatial analysis and fiscal data — suitability modeling, cartography, and web GIS.",
+  contactHeadline: "Open to GIS-analyst and spatial × fiscal roles.",
 } as const;
 
 /** Capability filters, in display order. "All" is the default view. */

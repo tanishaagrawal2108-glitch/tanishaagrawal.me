@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import { Kicker } from "@/components/kicker";
-import { site } from "@/content/site";
+import { getSiteContent } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Resume",
-  description: `Resume of ${site.name}, Spatial & Data Analyst — GIS, suitability modeling, cartography and web GIS.`,
+  description:
+    "Resume of Tanisha Agrawal, Spatial & Data Analyst — GIS, suitability modeling, cartography and web GIS.",
 };
 
-export default function ResumePage() {
+export default async function ResumePage() {
+  const site = await getSiteContent();
+
   return (
     <section className="mx-auto max-w-[980px] px-6 pb-20 pt-14 sm:px-10">
       <div className="mb-7 flex flex-wrap items-end justify-between gap-6">
@@ -18,7 +21,7 @@ export default function ResumePage() {
           </h1>
         </div>
         <a
-          href={site.resumeFile}
+          href={site.resumeUrl}
           download
           className="inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-[13px] text-[15px] font-semibold text-paper hover:-translate-y-px"
         >
@@ -29,10 +32,10 @@ export default function ResumePage() {
       <div className="overflow-hidden rounded-xl border border-line bg-white">
         <div className="flex items-center justify-between bg-ink-2 px-4 py-2.5">
           <span className="font-mono text-[12px] text-white/85">
-            tanisha-agrawal-resume.pdf
+            {site.name} — resume
           </span>
           <a
-            href={site.resumeFile}
+            href={site.resumeUrl}
             target="_blank"
             rel="noreferrer noopener"
             className="font-mono text-[11px] text-white/60 hover:text-white"
@@ -40,13 +43,8 @@ export default function ResumePage() {
             Open in new tab ↗
           </a>
         </div>
-        {/*
-          Embedded PDF viewer. The browser's native PDF renderer handles this.
-          TODO(tanisha): drop the real file at /public/tanisha-agrawal-resume.pdf
-          (a labelled placeholder ships until then).
-        */}
         <object
-          data={site.resumeFile}
+          data={site.resumeUrl}
           type="application/pdf"
           aria-label={`${site.name} resume`}
           className="h-[80vh] max-h-[1100px] w-full bg-[#e9e8e3]"
@@ -56,7 +54,7 @@ export default function ResumePage() {
               Your browser can&rsquo;t display the embedded PDF.
             </p>
             <a
-              href={site.resumeFile}
+              href={site.resumeUrl}
               download
               className="inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-[13px] text-[15px] font-semibold text-paper"
             >
